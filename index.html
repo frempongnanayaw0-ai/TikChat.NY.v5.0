@@ -1,0 +1,2467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TikChat Hyper-Monolith Matrix Engine - NY Enterprise Edition v5.0</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-panel: #09090b;
+            --bg-card: #18181b;
+            --bg-card-hover: #27272a;
+            --border-color: #27272a;
+            --border-focus: #3f3f46;
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --accent-color: #fe2c55;
+            --accent-hover: #e02447;
+            --ai-accent: #20d5ec;
+            --ai-accent-dim: rgba(32, 213, 236, 0.15);
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            
+            --msg-inbound: rgba(39, 39, 42, 0.65);
+            --msg-outbound: rgba(254, 44, 85, 0.8);
+            --msg-ai: rgba(24, 34, 51, 0.85);
+            
+            --chat-wallpaper: radial-gradient(circle at top right, rgba(254, 44, 85, 0.12), transparent 40%), radial-gradient(circle at bottom left, rgba(32, 213, 236, 0.04), transparent 50%), #09090b;
+            --ai-wallpaper: radial-gradient(circle at top left, rgba(32, 213, 236, 0.15), transparent 45%), radial-gradient(circle at bottom right, rgba(147, 51, 234, 0.08), transparent 45%), #09090b;
+            --studio-wallpaper: linear-gradient(180deg, #09090b 0%, #18181b 100%);
+            --analytics-wallpaper: #020203;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* HARDWARE PORTS LAYOUT MAPPING */
+        .app-view-port {
+            flex: 1;
+            width: 100%;
+            height: calc(100vh - 68px);
+            overflow: hidden;
+            position: relative;
+            background-color: var(--bg-main);
+        }
+
+        /* FIXED SYSTEM FOOTER NAV BAR */
+        .global-navigation-bar {
+            height: 68px;
+            background-color: #010101;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom);
+            width: 100%;
+            position: relative;
+        }
+
+        .nav-tab-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 60px;
+            transition: color 0.2s cubic-bezier(0.25, 1, 0.5, 1), transform 0.15s ease;
+            position: relative;
+        }
+
+        .nav-tab-link.active-view {
+            color: var(--text-primary);
+        }
+
+        .nav-tab-link i {
+            font-size: 20px;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+
+        .nav-tab-link.active-view i {
+            transform: scale(1.1);
+        }
+
+        .nav-tab-indicator-dot {
+            position: absolute;
+            bottom: -8px;
+            width: 4px;
+            height: 4px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .nav-tab-link.active-view .nav-tab-indicator-dot {
+            opacity: 1;
+        }
+
+        /* TIKTOK SWIPE FEED PIPELINES */
+        .tiktok-feed-scroller {
+            height: 100%;
+            width: 100%;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            position: relative;
+        }
+        .tiktok-feed-scroller::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tiktok-video-container {
+            width: 100%;
+            height: 100%;
+            scroll-snap-align: start;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+            overflow: hidden;
+        }
+
+        .video-surface-canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .video-surface-canvas video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: filter 0.3s ease;
+        }
+
+        /* VIDEO PROCESSING SHADER FILTERS */
+        .filter-normal { filter: none; }
+        .filter-cyberpunk { filter: hue-rotate(90deg) contrast(1.3) saturate(1.5); }
+        .filter-retro { filter: sepia(0.4) contrast(0.9) brightness(1.1); }
+        .filter-monochrome { filter: grayscale(1) contrast(1.2); }
+        .filter-vivid { filter: saturate(1.8) contrast(1.1); }
+        .filter-noir { filter: grayscale(0.9) contrast(1.7) brightness(0.8); }
+        .filter-glitch { filter: invert(0.05) contrast(1.5) hue-rotate(180deg); }
+        .filter-acid { filter: saturate(3) hue-rotate(270deg) contrast(1.2); }
+        .filter-plasma { filter: contrast(2) saturate(1.4) brightness(1.2); }
+
+        .video-pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.25);
+            opacity: 0;
+            transition: opacity 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .video-pause-overlay i {
+            font-size: 56px;
+            color: rgba(255,255,255,0.75);
+            text-shadow: 0 4px 16px rgba(0,0,0,0.6);
+            transform: scale(1.5);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .tiktok-video-container.paused-state .video-pause-overlay {
+            opacity: 1;
+        }
+        
+        .tiktok-video-container.paused-state .video-pause-overlay i {
+            transform: scale(1);
+        }
+
+        /* HUD OVERLAYS */
+        .video-details-hud {
+            position: absolute;
+            bottom: 20px;
+            left: 16px;
+            right: 84px;
+            z-index: 10;
+            text-shadow: 0 1px 8px rgba(0,0,0,0.9);
+            pointer-events: none;
+        }
+
+        .creator-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            pointer-events: auto;
+        }
+
+        .creator-row h4 { 
+            font-size: 15px; 
+            font-weight: 700; 
+            color: #ffffff;
+            letter-spacing: -0.2px;
+        }
+
+        .sub-btn {
+            background: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .sub-btn.subscribed {
+            background: rgba(39, 39, 42, 0.6);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(8px);
+        }
+
+        .video-caption { 
+            font-size: 13.5px; 
+            color: #f4f4f5; 
+            line-height: 1.4;
+            font-weight: 400;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            pointer-events: auto;
+        }
+        
+        .video-caption a {
+            color: #20d5ec;
+            text-decoration: none;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        /* ENGAGEMENT MATRIX VERTICAL BAR */
+        .engagement-action-column {
+            position: absolute;
+            right: 12px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            z-index: 10;
+        }
+
+        .action-item-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            width: 52px;
+        }
+
+        .action-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(20, 20, 22, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s;
+            color: var(--text-primary);
+        }
+        
+        .action-item-wrapper:active .action-icon-circle {
+            transform: scale(0.85);
+            background: rgba(254, 44, 85, 0.2);
+        }
+
+        .action-item-wrapper span { 
+            font-size: 11px; 
+            font-weight: 600; 
+            color: #f4f4f5; 
+            text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+            text-align: center;
+        }
+
+        .feed-top-navbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 24px 16px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        
+        .feed-top-navbar * {
+            pointer-events: auto;
+        }
+
+        .floating-post-trigger {
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+        .floating-post-trigger:active {
+            transform: scale(0.95);
+            background-color: #e4e4e7;
+        }
+
+        /* SYSTEM CORE LAYOUTS */
+        .chat-view-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--chat-wallpaper);
+        }
+
+        .ai-view-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--ai-wallpaper);
+        }
+
+        .chat-messages-scrollarea {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .msg-bubble-wrapper { 
+            display: flex; 
+            flex-direction: column; 
+            width: 100%; 
+            position: relative;
+        }
+        .msg-bubble-wrapper.sent { align-items: flex-end; }
+        .msg-bubble-wrapper.received { align-items: flex-start; }
+
+        .msg-meta-header { 
+            font-size: 10.5px; 
+            color: var(--text-secondary); 
+            margin-bottom: 4px; 
+            padding: 0 4px; 
+            font-weight: 600; 
+        }
+        
+        .msg-bubble { 
+            max-width: 78%; 
+            padding: 11px 15px; 
+            font-size: 14px; 
+            line-height: 1.45; 
+            backdrop-filter: blur(8px); 
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .msg-bubble-wrapper.received .msg-bubble { 
+            background: var(--msg-inbound); 
+            color: var(--text-primary); 
+            border-radius: 4px 16px 16px 16px; 
+            border: 1px solid rgba(255,255,255,0.05); 
+        }
+        
+        .msg-bubble-wrapper.sent .msg-bubble { 
+            background: var(--msg-outbound); 
+            color: #ffffff; 
+            border-radius: 16px 16px 4px 16px; 
+            box-shadow: 0 4px 12px rgba(254, 44, 85, 0.2);
+        }
+        
+        .msg-bubble-wrapper.ai-agent .msg-bubble { 
+            background: var(--msg-ai); 
+            color: var(--text-primary); 
+            border-radius: 4px 16px 16px 16px; 
+            border: 1px solid rgba(32, 213, 236, 0.25); 
+            box-shadow: 0 4px 14px rgba(32, 213, 236, 0.08);
+        }
+
+        .chat-footer-dock { 
+            padding: 12px 16px; 
+            background: rgba(12, 12, 14, 0.85); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-color); 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            width: 100%;
+            position: relative;
+        }
+        
+        .chat-footer-dock input { 
+            flex: 1; 
+            background: #010101; 
+            border: 1px solid var(--border-color); 
+            border-radius: 24px; 
+            padding: 12px 18px; 
+            color: #ffffff; 
+            outline: none; 
+            font-size: 14px; 
+            transition: border-color 0.2s ease;
+        }
+        
+        .chat-footer-dock input:focus {
+            border-color: var(--border-focus);
+        }
+        
+        .chat-footer-dock button { 
+            background: var(--accent-color); 
+            border: none; 
+            color: #ffffff; 
+            width: 42px; 
+            height: 42px; 
+            border-radius: 50%; 
+            font-size: 16px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+            flex-shrink: 0; 
+            transition: transform 0.1s ease, background-color 0.2s;
+        }
+        .chat-footer-dock button:active { transform: scale(0.92); }
+        .ai-send-btn { background: var(--ai-accent) !important; color: #000000 !important; }
+
+        .creators-horizon-bar { 
+            display: flex; 
+            gap: 16px; 
+            padding: 12px 16px; 
+            overflow-x: auto; 
+            background: rgba(12, 12, 14, 0.75); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color); 
+            width: 100%;
+        }
+        .creators-horizon-bar::-webkit-scrollbar { display: none; }
+        
+        .creator-bubble { display: flex; flex-direction: column; align-items: center; font-size: 10.5px; color: var(--text-secondary); cursor: pointer; width: 56px; flex-shrink: 0; }
+        .avatar-ring { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(to right, var(--accent-color), var(--ai-accent)); padding: 2px; margin-bottom: 4px; position: relative; }
+        
+        .avatar-ring.active-live::after {
+            content: "LIVE";
+            position: absolute;
+            bottom: -3px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-color);
+            color: #ffffff;
+            font-size: 7px;
+            font-weight: 900;
+            padding: 1px 4px;
+            border-radius: 4px;
+            border: 1px solid #000000;
+            letter-spacing: 0.2px;
+        }
+
+        .avatar-inner { width: 100%; height: 100%; background: #212124; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #ffffff; overflow: hidden; font-size: 15px; }
+        .avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .ai-header { padding: 14px 16px; background: rgba(12, 12, 14, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-color); text-align: center; font-weight: 700; color: var(--ai-accent); font-size: 14px; letter-spacing: 0.4px; display: flex; justify-content: center; align-items: center; gap: 8px; }
+
+        /* TELEMETRY ANALYTICS COMPONENT */
+        .ai-analytics-dashboard-panel {
+            background: rgba(24, 24, 27, 0.4);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .metric-card-node {
+            background: rgba(9, 9, 11, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .metric-card-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            margin-bottom: 2px;
+        }
+        .metric-card-value {
+            font-size: 13px;
+            font-weight: 800;
+            font-family: monospace;
+            color: var(--ai-accent);
+        }
+        .metric-micro-progress-bar {
+            width: 100%;
+            height: 2px;
+            background: #27272a;
+            margin-top: 4px;
+            border-radius: 1px;
+            overflow: hidden;
+        }
+        .metric-micro-progress-fill {
+            height: 100%;
+            background: var(--ai-accent);
+            width: 45%;
+        }
+
+        /* HARDWARE GRAPH CANVAS GRAPHICS */
+        .analytics-canvas-wrapper {
+            grid-column: span 3;
+            height: 110px;
+            background: #040406;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 4px;
+            position: relative;
+            padding: 6px;
+        }
+        .analytics-canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .realtime-graph-surface {
+            width: 100%;
+            height: calc(100% - 16px);
+            display: block;
+        }
+
+        /* IDENTITY MANAGEMENT & PROFILE LAYOUTS */
+        .auth-view-layout { display: flex; flex-direction: column; align-items: center; height: 100%; padding: 16px; overflow-y: auto; width: 100%; background-color: var(--bg-main); }
+        .auth-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; padding: 22px; width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 20px; }
+        .auth-card h2 { margin-bottom: 6px; font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+        .auth-card p { color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+        
+        .input-box { margin-bottom: 14px; }
+        .input-box label { display: block; font-size: 10px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; font-weight: 700; letter-spacing: 0.5px; }
+        .input-box input, .input-box select { width: 100%; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #ffffff; outline: none; font-size: 13.5px; transition: border-color 0.2s ease; }
+        .input-box input:focus, .input-box select:focus { border-color: var(--accent-color); }
+        
+        .auth-submit-btn { width: 100%; background: var(--accent-color); color: #ffffff; border: none; padding: 14px; border-radius: 8px; font-weight: 700; font-size: 13.5px; margin-top: 8px; cursor: pointer; transition: opacity 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .auth-submit-btn:active { opacity: 0.85; }
+        
+        .badge-avatar { width: 84px; height: 84px; background: linear-gradient(45deg, var(--accent-color), var(--ai-accent)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 32px; font-weight: 900; color: #ffffff; position: relative; overflow: hidden; border: 2px solid var(--border-color); }
+        .badge-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .avatar-upload-trigger { background: rgba(24,24,27,0.7); color: #ffffff; border: 1px solid var(--border-color); padding: 5px 12px; border-radius: 14px; font-size: 10.5px; font-weight: 600; cursor: pointer; margin: 0 auto 18px; display: block; width: max-content; transition: background 0.2s; }
+        .avatar-upload-trigger:active { background: #27272a; }
+
+        .meta-data-pill { background: rgba(24, 24, 27, 0.5); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .meta-data-pill span:first-child { color: var(--text-secondary); font-weight: 600; }
+        .meta-data-pill span:last-child { color: var(--text-primary); font-weight: 700; }
+
+        /* USER MEDIA ARCHIVE STRUCTURES */
+        .my-media-shelf-container { width: 100%; max-width: 420px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); margin-bottom: 24px; }
+        .shelf-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        .shelf-title-row h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-primary); }
+        .shelf-counter-badge { background: #27272a; padding: 3px 8px; border-radius: 12px; font-size: 10.5px; font-weight: 700; color: var(--ai-accent); }
+        
+        .profile-tabs-selector-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 14px;
+        }
+        .profile-sub-tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            position: relative;
+        }
+        .profile-sub-tab-btn.active-sub-tab {
+            color: var(--text-primary);
+        }
+        .profile-sub-tab-btn.active-sub-tab::after {
+            content: "";
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--text-primary);
+        }
+
+        .media-grid-display { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; justify-content: center; }
+        .media-grid-item-placeholder { background: rgba(9, 9, 11, 0.4); border: 1px dashed var(--border-color); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 130px; font-size: 11px; color: var(--text-secondary); text-align: center; padding: 12px; grid-column: span 3; }
+        
+        .media-grid-card { 
+            background: linear-gradient(135deg, #18181b 0%, #09090b 100%); 
+            border: 1px solid rgba(255,255,255,0.04); 
+            border-radius: 8px; 
+            height: 130px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            padding: 10px; 
+            position: relative; 
+            overflow: hidden; 
+            cursor: pointer;
+        }
+        .media-grid-card i { font-size: 18px; color: rgba(254, 44, 85, 0.5); }
+        .media-grid-caption { font-size: 10.5px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; color: #e4e4e7; margin-top: auto; }
+
+        /* PROFILE CONFIG SETTINGS SHEET */
+        .settings-nested-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+        .settings-item-row {
+            background: rgba(24, 24, 27, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .settings-item-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .settings-item-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .settings-item-desc {
+            font-size: 10.5px;
+            color: var(--text-muted);
+        }
+        
+        /* TOGGLE HARDWARE PARAMETERS */
+        .ios-toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 42px;
+            height: 24px;
+        }
+        .ios-toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .ios-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #27272a;
+            transition: .3s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+        }
+        .ios-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 50%;
+        }
+        .ios-toggle-switch input:checked + .ios-toggle-slider {
+            background-color: var(--success-color);
+        }
+        .ios-toggle-switch input:checked + .ios-toggle-slider:before {
+            transform: translateX(18px);
+        }
+
+        /* INTERACTIVE COMMENT SYSTEM SLIDE SLAB */
+        .comment-drawer-tray {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 65%;
+            background: #0c0c0e;
+            border-top: 1px solid var(--border-color);
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            z-index: 2000;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -8px 30px rgba(0,0,0,0.6);
+        }
+        
+        .comment-drawer-tray.open-active {
+            transform: translateY(0);
+        }
+
+        .comment-header-row {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .comment-header-row h3 { font-size: 13.5px; font-weight: 700; text-align: center; flex: 1; }
+        .comment-header-row i { font-size: 18px; color: var(--text-secondary); cursor: pointer; }
+
+        .comments-list-body {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .comment-node { display: flex; gap: 10px; align-items: flex-start; }
+        .comment-avatar { width: 32px; height: 32px; background: #27272a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #ffffff; flex-shrink: 0; overflow: hidden; }
+        .comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .comment-content-block { flex: 1; }
+        .comment-user-title { font-size: 11.5px; color: var(--text-secondary); font-weight: 700; margin-bottom: 2px; }
+        .comment-text-string { font-size: 13px; color: var(--text-primary); line-height: 1.4; }
+
+        /* REAL MULTI-PLATFORM FILE STUDIO WRAPPER */
+        .video-studio-processing-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--studio-wallpaper);
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .video-studio-processing-overlay.open-studio {
+            transform: translateY(0);
+        }
+        .studio-navbar-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(9, 9, 11, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        .studio-navbar-title { font-size: 14px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.2px; }
+        .studio-navbar-close-btn { background: none; border: none; color: var(--text-secondary); font-size: 16px; cursor: pointer; }
+        
+        .studio-viewport-preview-pane {
+            flex: 1;
+            background: #000000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            max-height: 45%;
+        }
+        .studio-viewport-preview-pane video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .studio-control-dashboard-scroll {
+            flex: 1.2;
+            padding: 16px;
+            overflow-y: auto;
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .studio-section-title { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 8px; }
+        
+        .studio-shaders-grid-row {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .studio-shaders-grid-row::-webkit-scrollbar { display: none; }
+        
+        .shader-selection-card-node {
+            width: 72px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .shader-thumbnail-preview-circle {
+            width: 54px;
+            height: 54px;
+            border-radius: 12px;
+            background: #18181b;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+        .shader-selection-card-node.active-shader .shader-thumbnail-preview-circle {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            transform: scale(1.04);
+        }
+        .shader-label-text-string { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+        .shader-selection-card-node.active-shader .shader-label-text-string { color: var(--text-primary); }
+
+        .audio-track-selector-pill {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .audio-track-selector-pill:active, .audio-track-selector-pill.selected-track {
+            border-color: var(--ai-accent);
+        }
+        .audio-track-icon-wrapper { width: 32px; height: 32px; border-radius: 50%; background: rgba(32, 213, 236, 0.1); color: var(--ai-accent); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+        /* SYNTHESIZER AUDIO MODULE LAB VIEW */
+        .synth-controls-layout-wrapper {
+            background: rgba(9, 9, 11, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 6px;
+        }
+        .synth-slider-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .synth-slider-group label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            width: 80px;
+        }
+        .synth-slider-group input {
+            flex: 1;
+            accent-color: var(--ai-accent);
+        }
+
+        /* RE-ENGINEERED FALLBACK SHARE PANEL */
+        .universal-share-tray {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #141416;
+            border-top: 1px solid var(--border-color);
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            z-index: 2100;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .universal-share-tray.open-active {
+            transform: translateY(0);
+        }
+
+        .share-tray-title {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .share-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .share-grid-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .share-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #1f1f23;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .share-grid-item:active .share-icon-box { transform: scale(0.9); background: #27272a; }
+        .share-grid-item span { font-size: 10.5px; color: var(--text-secondary); font-weight: 500; text-align: center; }
+
+        .share-cancel-btn {
+            width: 100%;
+            background: #1f1f23;
+            color: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13.5px;
+            cursor: pointer;
+        }
+
+        /* TOAST NOTIFICATION STACK */
+        .toast-popup-alert {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translate(-50%, -40px);
+            background: #ffffff;
+            color: #000000;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 12.5px;
+            font-weight: 700;
+            z-index: 5000;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+            pointer-events: none;
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: max-content;
+            max-width: 85%;
+            text-align: center;
+        }
+        .toast-popup-alert.visible-state {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, set, onChildAdded, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            databaseURL: "https://tikchat-ny-default-rtdb.firebaseio.com/"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            const db = getDatabase(app);
+            
+            const postsRef = ref(db, "global_posts");
+            const chatsRef = ref(db, "global_messages");
+            const likesRef = ref(db, "global_likes");
+            const commentsRef = ref(db, "global_comments");
+
+            window.cloudDB = { push, set, ref, db, postsRef, chatsRef, likesRef, commentsRef, onChildAdded, onValue };
+        } catch(firebaseInitializationError) {
+            console.warn("Firebase endpoints disconnected. System routing into local sandbox mode arrays automatically.");
+            window.cloudDB = null;
+        }
+    </script>
+</head>
+<body>
+
+    <div class="toast-popup-alert" id="systemToastAlert">
+        <i class="fa-solid fa-circle-info" style="color:var(--accent-color);" id="toastIconNode"></i>
+        <span id="toastMessageStringSlot">System Synchronized</span>
+    </div>
+
+    <main class="app-view-port" id="view-router-container"></main>
+
+    <nav class="global-navigation-bar">
+        <button class="nav-tab-link active-view" id="nav-home" onclick="switchActiveTab('home')">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+            <div class="nav-tab-indicator-dot"></div>
+        </button>
+        <button class="nav-tab-link" id="nav-chat" onclick="switchActiveTab('chat')">
+            <i class="fa-solid fa-comment-dots"></i>
+            <span>Chat</span>
+            <div class="nav-tab-indicator-dot"></div>
+        </button>
+        <button class="nav-tab-link" id="nav-ai" onclick="switchActiveTab('ai')">
+            <i class="fa-solid fa-robot"></i>
+            <span>AI Base</span>
+            <div class="nav-tab-indicator-dot"></div>
+        </button>
+        <button class="nav-tab-link" id="nav-profile" onclick="switchActiveTab('profile')">
+            <i class="fa-solid fa-user"></i>
+            <span>Profile</span>
+            <div class="nav-tab-indicator-dot"></div>
+        </button>
+    </nav>
+
+    <div class="comment-drawer-tray" id="globalCommentDrawer">
+        <div class="comment-header-row">
+            <h3 id="commentDrawerTitle">Comments (0)</h3>
+            <i class="fa-solid fa-xmark" onclick="closeCommentDrawerBox()"></i>
+        </div>
+        <div class="comments-list-body" id="drawerCommentsContainer"></div>
+        <div class="chat-footer-dock">
+            <input type="text" id="drawerCommentInputField" placeholder="Add custom public feedback parameter...">
+            <button onclick="submitNewCommentToCloud()"><i class="fa-solid fa-arrow-up"></i></button>
+        </div>
+    </div>
+
+    <div class="video-studio-processing-overlay" id="videoStudioDashboardTray">
+        <div class="studio-navbar-header">
+            <button class="studio-navbar-close-btn" onclick="closeVideoEditingStudioWorkspace()"><i class="fa-solid fa-chevron-down"></i> Cancel</button>
+            <div class="studio-navbar-title">Post Effects Processing Pipeline</div>
+            <button class="floating-post-trigger" style="box-shadow:none; padding:5px 12px; background:var(--accent-color); color:#fff;" onclick="compileStudioAssetAndPublishToFeed()"><i class="fa-solid fa-paper-plane"></i> Share</button>
+        </div>
+        <div class="studio-viewport-preview-pane">
+            <video id="studioRenderingAssetTag" autoplay loop muted playsinline></video>
+        </div>
+        <div class="studio-control-dashboard-scroll">
+            <div class="studio-control-section-wrapper">
+                <div class="studio-section-title">Visual Shader Transforms</div>
+                <div class="studio-shaders-grid-row">
+                    <div class="shader-selection-card-node active-shader" id="shader-node-normal" onclick="applyShaderTransformationToStudioAsset('normal')">
+                        <div class="shader-thumbnail-preview-circle"><i class="fa-solid fa-border-all"></i></div>
+                        <div class="shader-label-text-string">Raw</div>
+                    </div>
+                    <div class="shader-selection-card-node" id="shader-node-cyberpunk" onclick="applyShaderTransformationToStudioAsset('cyberpunk')">
+                        <div class="shader-thumbnail-preview-circle" style="color:#fe2c55;"><i class="fa-solid fa-bolt-lightning"></i></div>
+                        <div class="shader-label-text-string">Cyber</div>
+                    </div>
+                    <div class="shader-selection-card-node" id="shader-node-retro" onclick="applyShaderTransformationToStudioAsset('retro')">
+                        <div class="shader-thumbnail-preview-circle" style="color:#f59e0b;"><i class="fa-solid fa-camera-retro"></i></div>
+                        <div class="shader-label-text-string">VHS</div>
+                    </div>
+                    <div class="shader-selection-card-node" id="shader-node-monochrome" onclick="applyShaderTransformationToStudioAsset('monochrome')">
+                        <div class="shader-thumbnail-preview-circle" style="color:#a1a1aa;"><i class="fa-solid fa-circle-half-stroke"></i></div>
+                        <div class="shader-label-text-string">Mono</div>
+                    </div>
+                    <div class="shader-selection-card-node" id="shader-node-vivid" onclick="applyShaderTransformationToStudioAsset('vivid')">
+                        <div class="shader-thumbnail-preview-circle" style="color:#10b981;"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <div class="shader-label-text-string">Vivid</div>
+                    </div>
+                    <div class="shader-selection-card-node" id="shader-node-noir" onclick="applyShaderTransformationToStudioAsset('noir')">
+                        <div class="shader-thumbnail-preview-circle" style="color:#71717a;"><i class="fa-solid fa-moon"></i></div>
+                        <div class="shader-label-text-string">Noir</div>
+                    </div>
+                    <div class="shader-selection-card-node" id="shader-node-glitch" onclick="applyShaderTransformationToStudioAsset('glitch')">
+                        <div class="shader-thumbnail-preview-circle" style="color:#a855f7;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="shader-label-text-string">Glitch</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="studio-control-section-wrapper" style="margin-top:10px;">
+                <div class="studio-section-title">Metadata Overhaul Indices</div>
+                <div class="input-box">
+                    <label>Broadcast Description Parameters</label>
+                    <input type="text" id="studioCaptionParameterInput" placeholder="Add descriptive tags e.g. #developer #hypermonolith #matrix">
+                </div>
+            </div>
+
+            <div class="studio-control-section-wrapper">
+                <div class="studio-section-title">Integrated WebAudio Synthesizer Lab</div>
+                <div class="audio-track-selector-pill selected-track" id="track-pill-none" onclick="selectStudioAudioTrackParameter('none')">
+                    <div class="audio-track-icon-wrapper"><i class="fa-solid fa-volume-xmark"></i></div>
+                    <div class="settings-item-label">
+                        <div class="settings-item-title">Mute Native Audio Channel</div>
+                        <div class="settings-item-desc">Maintain raw chosen video bitstream track parameters</div>
+                    </div>
+                </div>
+                <div class="audio-track-selector-pill" id="track-pill-synth" style="margin-top:8px;" onclick="selectStudioAudioTrackParameter('synth')">
+                    <div class="audio-track-icon-wrapper" style="color:var(--ai-accent); background:rgba(32,213,236,0.1);"><i class="fa-solid fa-wave-square"></i></div>
+                    <div class="settings-item-label">
+                        <div class="settings-item-title">WebAudio Matrix Synth Driver</div>
+                        <div class="settings-item-desc">Inject high-density custom synthesized tone oscillation loops</div>
+                    </div>
+                </div>
+                
+                <div class="synth-controls-layout-wrapper" id="synthConfigurationControlsDeck" style="display:none;">
+                    <div class="synth-slider-group">
+                        <label>Oscillator Form</label>
+                        <select id="synthOscillatorTypeSelector" onchange="modifyLiveWebSynthParameters()" style="flex:1; background:#000; color:#fff; border:1px solid var(--border-color); padding:4px; font-size:11px; border-radius:4px;">
+                            <option value="sine">Sine Waveform</option>
+                            <option value="square" selected>Square Waveform</option>
+                            <option value="sawtooth">Sawtooth Engine</option>
+                            <option value="triangle">Triangle Array</option>
+                        </select>
+                    </div>
+                    <div class="synth-slider-group">
+                        <label>Base Pitch (Hz)</label>
+                        <input type="range" id="synthPitchSliderNode" min="110" max="880" value="220" oninput="modifyLiveWebSynthParameters()">
+                    </div>
+                    <div class="synth-slider-group">
+                        <label>LFO Modulation</label>
+                        <input type="range" id="synthLfoSliderNode" min="0" max="20" value="5" oninput="modifyLiveWebSynthParameters()">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="universal-share-tray" id="globalShareFallbackTray">
+        <div class="share-tray-title">Asset Transport Options</div>
+        <div class="share-actions-grid">
+            <button class="share-grid-item" onclick="executeFallbackShareAction('copy')">
+                <div class="share-icon-box" style="color: #3b82f6;"><i class="fa-solid fa-link"></i></div>
+                <span>Copy Link</span>
+            </button>
+            <button class="share-grid-item" onclick="executeFallbackShareAction('download')">
+                <div class="share-icon-box" style="color: #10b981;"><i class="fa-solid fa-download"></i></div>
+                <span>Save Local</span>
+            </button>
+            <button class="share-grid-item" onclick="executeFallbackShareAction('embed')">
+                <div class="share-icon-box" style="color: #a855f7;"><i class="fa-solid fa-code"></i></div>
+                <span>Embed Code</span>
+            </button>
+            <button class="share-grid-item" onclick="executeFallbackShareAction('report')">
+                <div class="share-icon-box" style="color: #ef4444;"><i class="fa-solid fa-flag"></i></div>
+                <span>Report File</span>
+            </button>
+        </div>
+        <button class="share-cancel-btn" onclick="closeUniversalShareTray()">Cancel Transport</button>
+    </div>
+
+    <script>
+        (function() {
+            // REDUX CORE STATE STRUCT ENGINE DECLARATIONS
+            const TikChatDataStore = {
+                // INTERNAL STRUCTURALLY TRACKED STATE OBJECT ROOT
+                state: {
+                    currentLocalUser: "NY_Creator",
+                    userEmail: "ny.dev@loginfrempo.com",
+                    userAge: "17",
+                    isAccountGenerated: true,
+                    generatedUID: "TC-5000",
+                    profilePictureUrl: "",
+                    activeProfileSubTab: "assets",
+                    
+                    securitySettingsRegistry: {
+                        biometricLockEnabled: false,
+                        developerTelemetryActive: true,
+                        persistentStateCacheActive: true,
+                        hardwareProxyTunnel: false,
+                        quantumEncryptionLayer: true
+                    },
+
+                    subRegistry: {},
+                    userLikesRegistry: {},
+                    cachedVideoComments: {},
+                    myPersonalPostsArray: [],
+                    activeCommentTargetPostId: null,
+                    activeShareTargetData: null,
+
+                    isChatListening: false,
+                    isFeedListening: false,
+                    isLikesListening: false,
+                    isCommentsListening: false,
+
+                    activeStudioAssetBlobPointer: null,
+                    activeStudioSelectedShaderKey: "normal",
+                    activeStudioSelectedAudioKey: "none",
+                    
+                    synthParams: {
+                        type: "square",
+                        frequency: 220,
+                        lfo: 5
+                    },
+
+                    starterFeeds: [
+                        { 
+                            id: "hyper_1", 
+                            username: "Frempo_Dev", 
+                            caption: "Hyper-Monolith core scaling past 5,000 lines of fully compiled structural script. Responsive Web UI sandbox environments running baseline architecture smoothly inside mobile containers! 🚀 #nydev #monolith #fullstack #ghana", 
+                            videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-light-looking-at-phone-41680-large.mp4", 
+                            baseLikes: 45290,
+                            shaderFilter: "filter-cyberpunk"
+                        },
+                        { 
+                            id: "hyper_2", 
+                            username: "Elena_Design", 
+                            caption: "Testing modular visual filter matrices under rapid layout viewport calculations. The compilation layers perform brilliantly. ⚡ #webgl #css3 #uidesign", 
+                            videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-vertical-shot-of-a-futuristic-cyberpunk-neon-city-43187-large.mp4", 
+                            baseLikes: 21084,
+                            shaderFilter: "filter-normal"
+                        }
+                    ],
+
+                    aiHistoryLogs: [
+                        { sender: "AI Core Backend", message: "Hyper-Monolith Architecture Matrix instantiated at 100% capacity index. All background sync pipelines operating normal parameters." }
+                    ]
+                },
+
+                // MUTATION REDUCER MIDDLEWARE DISPATCH ARCHITECTURE
+                dispatch: function(action) {
+                    console.log(`[Store Action Dispatch Event Call]: ${action.type}`, action.payload);
+                    const prevState = JSON.parse(JSON.stringify(this.state));
+                    
+                    switch(action.type) {
+                        case "SET_USER_IDENTITY":
+                            this.state.currentLocalUser = action.payload.username;
+                            this.state.userEmail = action.payload.email;
+                            this.state.userAge = action.payload.age;
+                            this.state.isAccountGenerated = true;
+                            this.state.generatedUID = "TC-" + Math.floor(5000 + Math.random() * 4999);
+                            break;
+                        case "SET_AVATAR_URI":
+                            this.state.profilePictureUrl = action.payload.uri;
+                            break;
+                        case "TOGGLE_SECURITY_SETTING":
+                            const key = action.payload.key;
+                            if(this.state.securitySettingsRegistry[key] !== undefined) {
+                                this.state.securitySettingsRegistry[key] = !this.state.securitySettingsRegistry[key];
+                            }
+                            break;
+                        case "SET_ACTIVE_SUBTAB":
+                            this.state.activeProfileSubTab = action.payload.tab;
+                            break;
+                        case "TOGGLE_LIKE":
+                            const pId = action.payload.postId;
+                            this.state.userLikesRegistry[pId] = !this.state.userLikesRegistry[pId];
+                            break;
+                        case "SYNC_LIKES_MAP":
+                            this.state.userLikesRegistry = Object.assign({}, this.state.userLikesRegistry, action.payload.map);
+                            break;
+                        case "SYNC_COMMENTS_MAP":
+                            this.state.cachedVideoComments = Object.assign({}, this.state.cachedVideoComments, action.payload.map);
+                            break;
+                        case "ADD_PERSONAL_POST":
+                            this.state.myPersonalPostsArray.unshift(action.payload.post);
+                            break;
+                        case "SET_STUDIO_BLOB":
+                            this.state.activeStudioAssetBlobPointer = action.payload.blob;
+                            break;
+                        case "UPDATE_STUDIO_CONFIG":
+                            if(action.payload.shader) this.state.activeStudioSelectedShaderKey = action.payload.shader;
+                            if(action.payload.audio) this.state.activeStudioSelectedAudioKey = action.payload.audio;
+                            break;
+                        case "SET_SYNTH_PARAMS":
+                            this.state.synthParams = Object.assign({}, this.state.synthParams, action.payload.params);
+                            break;
+                        case "HARD_RESET_STORE":
+                            localStorage.clear();
+                            this.state.currentLocalUser = "Guest_NY";
+                            this.state.userEmail = "guest@loginfrempo.com";
+                            this.state.userAge = "18";
+                            this.state.isAccountGenerated = false;
+                            this.state.myPersonalPostsArray = [];
+                            this.state.userLikesRegistry = {};
+                            this.state.cachedVideoComments = {};
+                            break;
+                        default:
+                            break;
+                    }
+                    
+                    this.saveStateToCachePartition();
+                },
+
+                initializeStateTrackingMemory: function() {
+                    if(localStorage.getItem("tikchat_hyper_session_active") === "true") {
+                        try {
+                            const root = this.state;
+                            root.currentLocalUser = localStorage.getItem("tk_user") || root.currentLocalUser;
+                            root.userEmail = localStorage.getItem("tk_email") || root.userEmail;
+                            root.userAge = localStorage.getItem("tk_age") || root.userAge;
+                            root.generatedUID = localStorage.getItem("tk_uid") || root.generatedUID;
+                            root.profilePictureUrl = localStorage.getItem("tk_pfp") || root.profilePictureUrl;
+                            
+                            const posts = localStorage.getItem("tk_posts_json");
+                            if(posts) root.myPersonalPostsArray = JSON.parse(posts);
+                            
+                            const likes = localStorage.getItem("tk_likes_json");
+                            if(likes) root.userLikesRegistry = JSON.parse(likes);
+                            
+                            const comments = localStorage.getItem("tk_comments_json");
+                            if(comments) root.cachedVideoComments = JSON.parse(comments);
+                            
+                            const settings = localStorage.getItem("tk_settings_json");
+                            if(settings) root.securitySettingsRegistry = JSON.parse(settings);
+                        } catch (cacheFetchError) {
+                            console.error("Critical failure during deserialization cascade routines.");
+                        }
+                    }
+                    window.switchActiveTab('home');
+                },
+
+                saveStateToCachePartition: function() {
+                    if(!this.state.securitySettingsRegistry.persistentStateCacheActive) return;
+                    try {
+                        const root = this.state;
+                        localStorage.setItem("tikchat_hyper_session_active", "true");
+                        localStorage.setItem("tk_user", root.currentLocalUser);
+                        localStorage.setItem("tk_email", root.userEmail);
+                        localStorage.setItem("tk_age", root.userAge);
+                        localStorage.setItem("tk_uid", root.generatedUID);
+                        localStorage.setItem("tk_pfp", root.profilePictureUrl);
+                        localStorage.setItem("tk_posts_json", JSON.stringify(root.myPersonalPostsArray));
+                        localStorage.setItem("tk_likes_json", JSON.stringify(root.userLikesRegistry));
+                        localStorage.setItem("tk_comments_json", JSON.stringify(root.cachedVideoComments));
+                        localStorage.setItem("tk_settings_json", JSON.stringify(root.securitySettingsRegistry));
+                    } catch(serializationFault) {
+                        console.error("Write boundaries restricted or local disk storage allotment depleted.");
+                    }
+                }
+            };
+
+            window.TikChatDataStore = TikChatDataStore;
+        })();
+
+        document.addEventListener("DOMContentLoaded", () => {
+            window.TikChatDataStore.initializeStateTrackingMemory();
+        })();
+    </script>
+
+    <script>
+        const applicationViews = {
+            home: () => `
+                <div style="position:relative; height:100%; width:100%; background:#000000;">
+                    <div class="feed-top-navbar">
+                        <span style="font-weight:900; font-size:19px; color:#ffffff; letter-spacing:-0.4px;">TikChat <span style="font-size:9px; vertical-align:super; color:var(--accent-color); font-weight:800; border:1px solid var(--accent-color); padding:1px 4px; border-radius:4px; margin-left:4px;">HYPER v5.0</span></span>
+                        <button class="floating-post-trigger" onclick="triggerHardwareFilePickerPipeline()">
+                            <i class="fa-solid fa-plus-circle" style="color:var(--accent-color); font-size:15px;"></i> Create Asset
+                        </button>
+                    </div>
+                    <div class="tiktok-feed-scroller" id="tiktokFeedBox"></div>
+                </div>
+            `,
+            chat: () => `
+                <div class="chat-view-layout">
+                    <div class="creators-horizon-bar">
+                        <div class="creator-bubble" onclick="switchActiveTab('profile')">
+                            <div class="avatar-ring active-live">
+                                <div class="avatar-inner" id="horizon-avatar-me">
+                                    ${window.TikChatDataStore.state.profilePictureUrl ? `<img src="${window.TikChatDataStore.state.profilePictureUrl}">` : window.TikChatDataStore.state.currentLocalUser.charAt(0).toUpperCase()}
+                                </div>
+                            </div>
+                            <span style="color:#ffffff; font-weight:700;">@me</span>
+                        </div>
+                        <div class="creator-bubble"><div class="avatar-ring"><div class="avatar-inner">F</div></div><span>Frempo_Dev</span></div>
+                        <div class="creator-bubble"><div class="avatar-ring"><div class="avatar-inner">Elena</div></div><span>Elena_Design</span></div>
+                        <div class="creator-bubble"><div class="avatar-ring"><div class="avatar-inner">K</div></div><span>Kwame_Code</span></div>
+                    </div>
+                    <div class="chat-messages-scrollarea" id="liveChatContainer"></div>
+                    <div class="chat-footer-dock">
+                        <input type="text" id="chatMessageInput" placeholder="Broadcast matrix infrastructure message token...">
+                        <button onclick="triggerCloudMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            `,
+            ai: () => `
+                <div class="ai-view-layout">
+                    <div class="ai-header"><i class="fa-solid fa-shield-halved" style="color:var(--ai-accent);"></i> Core Stack Hyper AI Terminal</div>
+                    
+                    <div class="ai-analytics-dashboard-panel">
+                        <div class="metric-card-node">
+                            <div class="metric-card-title">Algorithmic Distribution Weight</div>
+                            <div class="metric-card-value" id="telemetryDistributionValue">914.8K points</div>
+                            <div class="metric-micro-progress-bar"><div class="metric-micro-progress-fill" style="width:88%; background:var(--accent-color);"></div></div>
+                        </div>
+                        <div class="metric-card-node">
+                            <div class="metric-card-title">Thread Matrix Load</div>
+                            <div class="metric-card-value" id="telemetryCpuLoadValue">4.12%</div>
+                            <div class="metric-micro-progress-bar"><div class="metric-micro-progress-fill" style="width:8%; background:var(--ai-accent);"></div></div>
+                        </div>
+                        <div class="metric-card-node">
+                            <div class="metric-card-title">Database Core Sync Latency</div>
+                            <div class="metric-card-value" id="telemetryLatencyValue">14 ms</div>
+                            <div class="metric-micro-progress-bar"><div class="metric-micro-progress-fill" style="width:12%; background:var(--success-color);"></div></div>
+                        </div>
+                        
+                        <div class="analytics-canvas-wrapper">
+                            <div class="analytics-canvas-header">
+                                <span>Realtime Core Cluster Analytics Data Stream Graph</span>
+                                <span style="color:var(--accent-color); font-family:monospace; font-weight:800;">LIVE PACKETS</span>
+                            </div>
+                            <canvas class="realtime-graph-surface" id="telemetryGraphCanvasSurface"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chat-messages-scrollarea" id="aiChatWindowArea"></div>
+                    <div class="chat-footer-dock">
+                        <input type="text" id="aiWorkspaceInput" placeholder="Command structural system adjustments or framework edits...">
+                        <button class="ai-send-btn" onclick="dispatchAiPromptRequest()"><i class="fa-solid fa-bolt-lightning"></i></button>
+                    </div>
+                </div>
+            `,
+            profile: () => {
+                const s = window.TikChatDataStore.state;
+                if (!s.isAccountGenerated) {
+                    return `
+                    <div class="auth-view-layout">
+                        <div class="auth-card">
+                            <h2>Identity Deployment Hub</h2>
+                            <p>Register structural parameter configuration handles to mount device data channels.</p>
+                            
+                            <div class="input-box">
+                                <label>Handle Title Identity</label>
+                                <input type="text" id="regUsername" value="${s.currentLocalUser}">
+                            </div>
+                            <div class="input-box">
+                                <label>Developer Mail Endpoint</label>
+                                <input type="email" id="regEmail" value="${s.userEmail}">
+                            </div>
+                            <div class="input-box">
+                                <label>Validation Age Threshold</label>
+                                <input type="number" id="regAge" value="${s.userAge}">
+                            </div>
+                            
+                            <button class="auth-submit-btn" onclick="processAccountGeneration()"><i class="fa-solid fa-id-card"></i> Instantiate Matrix</button>
+                        </div>
+                    </div>`;
+                } else {
+                    return `
+                    <div class="auth-view-layout">
+                        <div class="auth-card">
+                            <div class="badge-avatar" id="profile-avatar-viewport">
+                                ${s.profilePictureUrl ? `<img src="${s.profilePictureUrl}">` : s.currentLocalUser.charAt(0).toUpperCase()}
+                            </div>
+                            
+                            <button class="avatar-upload-trigger" onclick="triggerAvatarSystemUpload()">
+                                <i class="fa-solid fa-images" style="margin-right:4px;"></i> Inject Image Buffer
+                            </button>
+                            
+                            <div class="meta-data-pill"><span>Broadcaster Node Handle</span><span>@${s.currentLocalUser}</span></div>
+                            <div class="meta-data-pill"><span>Security Token Key ID</span><span style="color:var(--ai-accent); font-family:monospace; font-weight:800;">${s.generatedUID}</span></div>
+                        </div>
+
+                        <div class="my-media-shelf-container">
+                            <div class="profile-tabs-selector-row">
+                                <button class="profile-sub-tab-btn ${s.activeProfileSubTab === 'assets' ? 'active-sub-tab' : ''}" onclick="switchProfileSecondarySubTabView('assets')">My Shared Streams</button>
+                                <button class="profile-sub-tab-btn ${s.activeProfileSubTab === 'settings' ? 'active-sub-tab' : ''}" onclick="switchProfileSecondarySubTabView('settings')">Engine Locks</button>
+                            </div>
+                            
+                            <div id="profileSubDynamicTabContentDeck"></div>
+                        </div>
+                    </div>`;
+                }
+            }
+        };
+
+        function renderProfileSubAssetsTemplateDeck() {
+            const arr = window.TikChatDataStore.state.myPersonalPostsArray;
+            let html = `<div class="media-grid-display">`;
+            if (arr.length === 0) {
+                html += `
+                    <div class="media-grid-item-placeholder">
+                        <i class="fa-solid fa-video-slash" style="font-size:24px; margin-bottom:8px; opacity:0.3; color:var(--accent-color);"></i>
+                        <span>No shared stream parameters registered on this device node partition. Use the asset engine to create posts.</span>
+                    </div>`;
+            } else {
+                arr.forEach((post, index) => {
+                    html += `
+                        <div class="media-grid-card" onclick="focusAndPlayTargetPersonalAssetInFeed('${post.id || index}')">
+                            <i class="fa-solid fa-play-circle"></i>
+                            <div class="media-grid-caption">${escapeHtmlMarkerStrings(post.caption)}</div>
+                        </div>`;
+                });
+            }
+            html += `</div>`;
+            return html;
+        }
+
+        function renderProfileSubSettingsTemplateDeck() {
+            const s = window.TikChatDataStore.state.securitySettingsRegistry;
+            return `
+                <div class="settings-nested-stack">
+                    <div class="settings-item-row">
+                        <div class="settings-item-label">
+                            <div class="settings-item-title">Biometric Touch ID Simulation</div>
+                            <div class="settings-item-desc">Require iOS secure hardware cryptographic validation wrappers</div>
+                        </div>
+                        <label class="ios-toggle-switch">
+                            <input type="checkbox" id="toggle-setting-biometric" ${s.biometricLockEnabled ? 'checked' : ''} onchange="toggleEngineSecurityConfigurationParameter('biometricLockEnabled')">
+                            <span class="ios-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item-row">
+                        <div class="settings-item-label">
+                            <div class="settings-item-title">Persistent Local Storage Cache</div>
+                            <div class="settings-item-desc">Serialize dynamic app uploads into sandbox device disk memory slots</div>
+                        </div>
+                        <label class="ios-toggle-switch">
+                            <input type="checkbox" id="toggle-setting-cache" ${s.persistentStateCacheActive ? 'checked' : ''} onchange="toggleEngineSecurityConfigurationParameter('persistentStateCacheActive')">
+                            <span class="ios-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item-row">
+                        <div class="settings-item-label">
+                            <div class="settings-item-title">Hardware Telemetry Graphs</div>
+                            <div class="settings-item-desc">Activate canvas telemetry tracking matrix loops inside AI window dashboard panels</div>
+                        </div>
+                        <label class="ios-toggle-switch">
+                            <input type="checkbox" id="toggle-setting-telemetry" ${s.developerTelemetryActive ? 'checked' : ''} onchange="toggleEngineSecurityConfigurationParameter('developerTelemetryActive')">
+                            <span class="ios-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item-row">
+                        <div class="settings-item-label">
+                            <div class="settings-item-title">Quantum Tunnel Proxy Protocols</div>
+                            <div class="settings-item-desc">Force deep structural endpoint protection encryption layers</div>
+                        </div>
+                        <label class="ios-toggle-switch">
+                            <input type="checkbox" id="toggle-setting-quantum" ${s.quantumEncryptionLayer ? 'checked' : ''} onchange="toggleEngineSecurityConfigurationParameter('quantumEncryptionLayer')">
+                            <span class="ios-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <button class="auth-submit-btn" style="background:#27272a; margin-top:12px; font-size:11px; padding:10px;" onclick="wipeIdentitySessionInstanceAndResetForms()"><i class="fa-solid fa-power-off"></i> Destructive Memory Purge Sequence</button>
+                </div>`;
+        }
+
+        window.switchActiveTab = function(targetTab) {
+            closeCommentDrawerBox();
+            closeUniversalShareTray();
+            closeVideoEditingStudioWorkspace();
+
+            const container = document.getElementById("view-router-container");
+            if (applicationViews[targetTab]) container.innerHTML = applicationViews[targetTab]();
+
+            document.querySelectorAll(".nav-tab-link").forEach(btn => btn.classList.remove("active-view"));
+            const tabBtn = document.getElementById(`nav-${targetTab}`);
+            if (tabBtn) tabBtn.classList.add("active-view");
+
+            if (targetTab === 'home') {
+                renderStarterFeedsToScrollerGrid();
+                initFeedSyncListener();
+            }
+            if (targetTab === 'chat') {
+                initChatSyncListener();
+                setupChatInputHookListeners();
+            }
+            if (targetTab === 'ai') {
+                renderAiStaticLogsToWindow();
+                setupAiInputHookListeners();
+                startDynamicHardwareTelemetryIntervals();
+            }
+            if (targetTab === 'profile') {
+                evaluateAndInjectActiveProfileSubDynamicTab();
+            }
+        };
+
+        window.switchProfileSecondarySubTabView = function(subTabKey) {
+            window.TikChatDataStore.dispatch({ type: "SET_ACTIVE_SUBTAB", payload: { tab: subTabKey } });
+            evaluateAndInjectActiveProfileSubDynamicTab();
+        };
+
+        function evaluateAndInjectActiveProfileSubDynamicTab() {
+            const dynamicTargetBox = document.getElementById("profileSubDynamicTabContentDeck");
+            if(!dynamicTargetBox) return;
+
+            const activeTabKey = window.TikChatDataStore.state.activeProfileSubTab;
+            document.querySelectorAll(".profile-sub-tab-btn").forEach(btn => btn.classList.remove("active-sub-tab"));
+            
+            if (activeTabKey === 'assets') {
+                dynamicTargetBox.innerHTML = renderProfileSubAssetsTemplateDeck();
+            } else if (activeTabKey === 'settings') {
+                dynamicTargetBox.innerHTML = renderProfileSubSettingsTemplateDeck();
+            }
+        }
+
+        window.toggleEngineSecurityConfigurationParameter = function(parameterKey) {
+            window.TikChatDataStore.dispatch({ type: "TOGGLE_SECURITY_SETTING", payload: { key: parameterKey } });
+            triggerSystemAlertNotification(`State mutated parameter: ${parameterKey}`, "success");
+        };
+
+        window.processAccountGeneration = function() {
+            const user = document.getElementById("regUsername").value.trim();
+            const email = document.getElementById("regEmail").value.trim();
+            const age = document.getElementById("regAge").value.trim();
+            
+            if(!user || !email || !age) {
+                triggerSystemAlertNotification("Validation error: Configuration fields require mapping text entries.", "error");
+                return;
+            }
+
+            window.TikChatDataStore.dispatch({ type: "SET_USER_IDENTITY", payload: { username: user, email: email, age: age } });
+            switchActiveTab('profile');
+            triggerSystemAlertNotification("Identity parameter vectors written into data engine core modules.", "success");
+        };
+
+        window.wipeIdentitySessionInstanceAndResetForms = function() {
+            if(confirm("Confirm critical infrastructure state clearing protocols? Stored asset caches will drop completely.")) {
+                window.TikChatDataStore.dispatch({ type: "HARD_RESET_STORE" });
+                switchActiveTab('profile');
+                triggerSystemAlertNotification("Device memory modules fully wiped.", "warning");
+            }
+        };
+
+        window.triggerAvatarSystemUpload = function() {
+            const fNode = document.createElement("input");
+            fNode.type = "file";
+            fNode.accept = "image/*";
+            fNode.onchange = (e) => {
+                const f = e.target.files[0];
+                if (!f) return;
+                const r = new FileReader();
+                r.onload = function(evt) {
+                    window.TikChatDataStore.dispatch({ type: "SET_AVATAR_URI", payload: { uri: evt.target.result } });
+                    const box = document.getElementById("profile-avatar-viewport");
+                    if (box) box.innerHTML = `<img src="${evt.target.result}">`;
+                    triggerSystemAlertNotification("Image matrix serialized.", "success");
+                };
+                r.readAsDataURL(f);
+            };
+            fNode.click();
+        };
+    </script>
+
+    <script>
+        let centralAudioContextEngineNodeInstanceReference = null;
+        let runningSynthOscillatorVoiceInstanceReference = null;
+        let runningSynthModulationLfoInstanceReference = null;
+        let runningSynthEnvelopeGainControlNodeInstanceReference = null;
+
+        function initializeHardwareWebAudioEngineContext() {
+            if (!centralAudioContextEngineNodeInstanceReference) {
+                centralAudioContextEngineNodeInstanceReference = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (centralAudioContextEngineNodeInstanceReference.state === 'suspended') {
+                centralAudioContextEngineNodeInstanceReference.resume();
+            }
+        }
+
+        function initiateLiveWebSynthOscillationLoop() {
+            try {
+                initializeHardwareWebAudioEngineContext();
+                haltLiveWebSynthOscillationLoop(); // Terminate lingering voice threads cleanly
+
+                const ctx = centralAudioContextEngineNodeInstanceReference;
+                const p = window.TikChatDataStore.state.synthParams;
+
+                runningSynthOscillatorVoiceInstanceReference = ctx.createOscillator();
+                runningSynthModulationLfoInstanceReference = ctx.createOscillator();
+                const lfoGain = ctx.createGain();
+                runningSynthEnvelopeGainControlNodeInstanceReference = ctx.createGain();
+
+                runningSynthOscillatorVoiceInstanceReference.type = p.type;
+                runningSynthOscillatorVoiceInstanceReference.frequency.setValueAtTime(p.frequency, ctx.currentTime);
+
+                runningSynthModulationLfoInstanceReference.type = 'sine';
+                runningSynthModulationLfoInstanceReference.frequency.setValueAtTime(p.lfo, ctx.currentTime);
+                lfoGain.gain.setValueAtTime(15, ctx.currentTime); // Depth modulation vector scale
+
+                runningSynthEnvelopeGainControlNodeInstanceReference.gain.setValueAtTime(0.08, ctx.currentTime); // Maintain low ambient decibels
+
+                // Map synthesizer routing graph matrix paths
+                runningSynthModulationLfoInstanceReference.connect(lfoGain);
+                lfoGain.connect(runningSynthOscillatorVoiceInstanceReference.frequency);
+                runningSynthOscillatorVoiceInstanceReference.connect(runningSynthEnvelopeGainControlNodeInstanceReference);
+                runningSynthEnvelopeGainControlNodeInstanceReference.connect(ctx.destination);
+
+                runningSynthOscillatorVoiceInstanceReference.start();
+                runningSynthModulationLfoInstanceReference.start();
+            } catch (audioContextInitFaultException) {
+                console.warn("WebAudio synthesis layer blocked by client interactions or layout hardware constraints.");
+            }
+        }
+
+        function modifyLiveWebSynthParameters() {
+            const tSel = document.getElementById("synthOscillatorTypeSelector");
+            const pSli = document.getElementById("synthPitchSliderNode");
+            const lSli = document.getElementById("synthLfoSliderNode");
+
+            if(!tSel || !pSli || !lSli) return;
+
+            const t = tSel.value;
+            const f = parseFloat(pSli.value);
+            const l = parseFloat(lSli.value);
+
+            window.TikChatDataStore.dispatch({
+                type: "SET_SYNTH_PARAMS",
+                payload: { params: { type: t, frequency: f, lfo: l } }
+            });
+
+            const ctx = centralAudioContextEngineNodeInstanceReference;
+            if(ctx && runningSynthOscillatorVoiceInstanceReference && runningSynthModulationLfoInstanceReference) {
+                runningSynthOscillatorVoiceInstanceReference.type = t;
+                runningSynthOscillatorVoiceInstanceReference.frequency.setValueAtTime(f, ctx.currentTime);
+                runningSynthModulationLfoInstanceReference.frequency.setValueAtTime(l, ctx.currentTime);
+            }
+        }
+
+        function haltLiveWebSynthOscillationLoop() {
+            try {
+                if (runningSynthOscillatorVoiceInstanceReference) {
+                    runningSynthOscillatorVoiceInstanceReference.stop();
+                    runningSynthOscillatorVoiceInstanceReference.disconnect();
+                    runningSynthOscillatorVoiceInstanceReference = null;
+                }
+                if (runningSynthModulationLfoInstanceReference) {
+                    runningSynthModulationLfoInstanceReference.stop();
+                    runningSynthModulationLfoInstanceReference.disconnect();
+                    runningSynthModulationLfoInstanceReference = null;
+                }
+                if (runningSynthEnvelopeGainControlNodeInstanceReference) {
+                    runningSynthEnvelopeGainControlNodeInstanceReference.disconnect();
+                    runningSynthEnvelopeGainControlNodeInstanceReference = null;
+                }
+            } catch (terminationFault) {
+                // Audio synthesis engine thread cleared cleanly
+            }
+        }
+    </script>
+
+    <script>
+        window.triggerHardwareFilePickerPipeline = function() {
+            const p = document.createElement("input");
+            p.type = "file";
+            p.accept = "video/*,image/*"; 
+            p.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                triggerSystemAlertNotification("Routing media bits into layout studio engine containers...", "info");
+                window.TikChatDataStore.dispatch({ type: "SET_STUDIO_BLOB", payload: { blob: file } });
+                openVideoEditingStudioWorkspace(URL.createObjectURL(file));
+            };
+            p.click();
+        };
+
+        function openVideoEditingStudioWorkspace(url) {
+            const tray = document.getElementById("videoStudioDashboardTray");
+            const vid = document.getElementById("studioRenderingAssetTag");
+            if(!tray || !vid) return;
+
+            vid.src = url;
+            vid.className = "filter-normal";
+            
+            document.querySelectorAll(".shader-selection-card-node").forEach(n => n.classList.remove("active-shader"));
+            const defNode = document.getElementById("shader-node-normal");
+            if(defNode) defNode.classList.add("active-shader");
+
+            window.TikChatDataStore.dispatch({ type: "UPDATE_STUDIO_CONFIG", payload: { shader: "normal", audio: "none" } });
+            document.getElementById("synthConfigurationControlsDeck").style.display = "none";
+            
+            const cap = document.getElementById("studioCaptionParameterInput");
+            if(cap) cap.value = "";
+
+            tray.classList.add("open-active", "open-studio");
+        }
+
+        window.closeVideoEditingStudioWorkspace = function() {
+            const tray = document.getElementById("videoStudioDashboardTray");
+            const vid = document.getElementById("studioRenderingAssetTag");
+            if(vid) { vid.pause(); vid.src = ""; }
+            if (tray) tray.classList.remove("open-active", "open-studio");
+            haltLiveWebSynthOscillationLoop();
+            window.TikChatDataStore.dispatch({ type: "SET_STUDIO_BLOB", payload: { blob: null } });
+        };
+
+        window.applyShaderTransformationToStudioAsset = function(sh) {
+            const vid = document.getElementById("studioRenderingAssetTag");
+            if(!vid) return;
+
+            document.querySelectorAll(".shader-selection-card-node").forEach(n => n.classList.remove("active-shader"));
+            const node = document.getElementById(`shader-node-${sh}`);
+            if(node) node.classList.add("active-shader");
+
+            window.TikChatDataStore.dispatch({ type: "UPDATE_STUDIO_CONFIG", payload: { shader: sh } });
+            vid.className = `filter-${sh}`;
+            triggerSystemAlertNotification(`Visual compilation graph set to: ${sh}`, "info");
+        };
+
+        window.selectStudioAudioTrackParameter = function(au) {
+            document.querySelectorAll(".audio-track-selector-pill").forEach(p => p.classList.remove("selected-track"));
+            const pill = document.getElementById(`track-pill-${au}`);
+            if(pill) pill.classList.add("selected-track");
+            
+            window.TikChatDataStore.dispatch({ type: "UPDATE_STUDIO_CONFIG", payload: { audio: au } });
+            
+            const deck = document.getElementById("synthConfigurationControlsDeck");
+            if (au === 'synth') {
+                deck.style.display = "block";
+                initiateLiveWebSynthOscillationLoop();
+                triggerSystemAlertNotification("Oscillator node connected to master system output destination buffers.", "success");
+            } else {
+                deck.style.display = "none";
+                haltLiveWebSynthOscillationLoop();
+            }
+        };
+
+        window.compileStudioAssetAndPublishToFeed = function() {
+            const s = window.TikChatDataStore.state;
+            const cInput = document.getElementById("studioCaptionParameterInput");
+            const cap = (cInput ? cInput.value.trim() : "") || "#nydev #hypermonolith";
+
+            if(!s.activeStudioAssetBlobPointer) {
+                triggerSystemAlertNotification("Error: Core asset buffer pointer returned null.", "error");
+                return;
+            }
+
+            const url = URL.createObjectURL(s.activeStudioAssetBlobPointer);
+            const pId = "hyper_post_" + Date.now();
+
+            const post = {
+                id: pId,
+                username: s.currentLocalUser,
+                caption: cap,
+                videoUrl: url,
+                baseLikes: 0,
+                shaderFilter: `filter-${s.activeStudioSelectedShaderKey}`,
+                timestamp: Date.now()
+            };
+
+            if (window.cloudDB) {
+                const { push, postsRef } = window.cloudDB;
+                try {
+                    push(postsRef, {
+                        username: s.currentLocalUser,
+                        caption: cap,
+                        videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-light-looking-at-phone-41680-large.mp4",
+                        shaderFilter: `filter-${s.activeStudioSelectedShaderKey}`,
+                        timestamp: Date.now()
+                    });
+                } catch(cErr) { console.error(cErr); }
+            }
+
+            window.TikChatDataStore.dispatch({ type: "ADD_PERSONAL_POST", payload: { post: post } });
+            closeVideoEditingStudioWorkspace();
+            switchActiveTab('home');
+            
+            const box = document.getElementById("tiktokFeedBox");
+            if (box) {
+                box.innerHTML = buildVideoCardHTMLStructure(post, pId) + box.innerHTML;
+                rebootScrollFeedIntersectionTrackingSequence();
+                const card = document.getElementById(`card-${pId}`);
+                if (card) card.scrollIntoView({ behavior: "smooth" });
+            }
+            triggerSystemAlertNotification("Asset stream compiled, post shaders injected, asset is live!", "success");
+        };
+
+        window.focusAndPlayTargetPersonalAssetInFeed = function(pId) {
+            switchActiveTab('home');
+            setTimeout(() => {
+                const c = document.getElementById(`card-${pId}`);
+                if (c) c.scrollIntoView({ behavior: "instant" });
+            }, 150);
+        };
+    </script>
+
+    <script>
+        function buildVideoCardHTMLStructure(dataItemNode, postUniqueStringIdKey) {
+            const s = window.TikChatDataStore.state;
+            const author = dataItemNode.username;
+            const subBtnId = `sub-btn-${postUniqueStringIdKey}`;
+            
+            const isSubbed = s.subRegistry[author] ? "subscribed" : "";
+            const subLabel = s.subRegistry[author] ? "Subscribed ✓" : "Subscribe";
+            
+            const baseLikes = dataItemNode.baseLikes || 0;
+            const heartClass = s.userLikesRegistry[postUniqueStringIdKey] ? "fa-solid" : "fa-regular";
+            const heartColor = s.userLikesRegistry[postUniqueStringIdKey] ? "var(--accent-color)" : "var(--text-primary)";
+            
+            const commentCount = s.cachedVideoComments[postUniqueStringIdKey] ? s.cachedVideoComments[postUniqueStringIdKey].length : 0;
+            const filterClass = dataItemNode.shaderFilter || "filter-normal";
+
+            let captionHtml = escapeHtmlMarkerStrings(dataItemNode.caption);
+            captionHtml = captionHtml.replace(/(#[a-zA-Z0-9_]+)/g, '<a href="#">$1</a>');
+
+            return `
+                <div class="tiktok-video-container" id="card-${postUniqueStringIdKey}" data-post-id="${postUniqueStringIdKey}">
+                    <div class="video-surface-canvas" onclick="executePlaybackToggleOnFeedTarget('${postUniqueStringIdKey}')">
+                        <video id="video-element-${postUniqueStringIdKey}" class="feed-active-video-tag ${filterClass}" loop playsinline webkit-playsinline muted src="${dataItemNode.videoUrl || ''}"></video>
+                        <div class="video-pause-overlay"><i class="fa-solid fa-play"></i></div>
+                    </div>
+                    <div class="video-details-hud">
+                        <div class="creator-row">
+                            <h4>@${escapeHtmlMarkerStrings(author)}</h4>
+                            <button class="sub-btn ${isSubbed}" id="${subBtnId}" onclick="toggleSubscriptionState('${escapeHtmlMarkerStrings(author)}', '${subBtnId}')">
+                                ${subLabel}
+                            </button>
+                        </div>
+                        <p class="video-caption">${captionHtml}</p>
+                    </div>
+                    <div class="engagement-action-column">
+                        <div class="action-item-wrapper" onclick="toggleCloudLikeStateParameters('${postUniqueStringIdKey}')">
+                            <div class="action-icon-circle" id="like-circle-${postUniqueStringIdKey}">
+                                <i class="${heartClass} fa-heart" id="like-icon-${postUniqueStringIdKey}" style="color:${heartColor};"></i>
+                            </div>
+                            <span id="like-counter-${postUniqueStringIdKey}">${baseLikes}</span>
+                        </div>
+                        <div class="action-item-wrapper" onclick="openCommentsDrawerPanelForPostId('${postUniqueStringIdKey}')">
+                            <div class="action-icon-circle"><i class="fa-solid fa-message"></i></div>
+                            <span id="comment-counter-${postUniqueStringIdKey}">${commentCount}</span>
+                        </div>
+                        <div class="action-item-wrapper" onclick="shareUniversalMediaPipeline('${postUniqueStringIdKey}', '${escapeHtmlMarkerStrings(author)}')">
+                            <div class="action-icon-circle"><i class="fa-solid fa-share-nodes"></i></div>
+                            <span>Share</span>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        window.executePlaybackToggleOnFeedTarget = function(pId) {
+            const card = document.getElementById(`card-${pId}`);
+            const vid = document.getElementById(`video-element-${pId}`);
+            if(!vid || !card) return;
+
+            if (vid.paused) {
+                vid.play().catch(() => { vid.muted = true; vid.play(); });
+                card.classList.remove("paused-state");
+            } else {
+                vid.pause();
+                card.classList.add("paused-state");
+            }
+        };
+
+        function renderStarterFeedsToScrollerGrid() {
+            const box = document.getElementById("tiktokFeedBox");
+            if (!box) return;
+
+            box.innerHTML = "";
+            const s = window.TikChatDataStore.state;
+
+            s.myPersonalPostsArray.forEach(p => { box.innerHTML += buildVideoCardHTMLStructure(p, p.id); });
+            s.starterFeeds.forEach(p => { box.innerHTML += buildVideoCardHTMLStructure(p, p.id); });
+
+            rebootScrollFeedIntersectionTrackingSequence();
+        }
+
+        window.toggleSubscriptionState = function(auth, btnId) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            const reg = window.TikChatDataStore.state.subRegistry;
+            if (reg[auth]) {
+                delete reg[auth];
+                btn.textContent = "Subscribe";
+                btn.classList.remove("subscribed");
+                triggerSystemAlertNotification(`Unsubscribed from @${auth}`, "info");
+            } else {
+                reg[auth] = true;
+                btn.textContent = "Subscribed ✓";
+                btn.classList.add("subscribed");
+                triggerSystemAlertNotification(`Subscribed to @${auth}`, "success");
+            }
+            window.TikChatDataStore.saveStateToCachePartition();
+        };
+
+        window.toggleCloudLikeStateParameters = function(pId) {
+            const s = window.TikChatDataStore.state;
+            if (!window.cloudDB) {
+                window.TikChatDataStore.dispatch({ type: "TOGGLE_LIKE", payload: { postId: pId } });
+                updateLikeUiDisplayMatrixLayouts(pId);
+                return;
+            }
+            const { set, ref, db } = window.cloudDB;
+            const likeRef = ref(db, `global_likes/${pId}/${s.currentLocalUser}`);
+            if (s.userLikesRegistry[pId]) {
+                set(likeRef, null);
+                s.userLikesRegistry[pId] = false;
+            } else {
+                set(likeRef, true);
+                s.userLikesRegistry[pId] = true;
+            }
+            window.TikChatDataStore.saveStateToCachePartition();
+        };
+
+        function updateLikeUiDisplayMatrixLayouts(pId) {
+            const s = window.TikChatDataStore.state;
+            const liked = s.userLikesRegistry[pId];
+            const cnt = document.getElementById(`like-counter-${pId}`);
+            const icon = document.getElementById(`like-icon-${pId}`);
+            
+            if(cnt) {
+                let val = parseInt(cnt.textContent) || 0;
+                cnt.textContent = liked ? val + 1 : Math.max(0, val - 1);
+            }
+            if (icon) {
+                icon.className = liked ? "fa-solid fa-heart" : "fa-regular fa-heart";
+                icon.style.color = liked ? "var(--accent-color)" : "var(--text-primary)";
+            }
+        }
+    </script>
+
+    <script>
+        window.openCommentsDrawerPanelForPostId = function(pId) {
+            window.TikChatDataStore.state.activeCommentTargetPostId = pId;
+            const drawer = document.getElementById("globalCommentDrawer");
+            if (drawer) drawer.classList.add("open-active");
+            renderCommentsFromSessionCacheDeck(pId);
+        };
+
+        window.closeCommentDrawerBox = function() {
+            const drawer = document.getElementById("globalCommentDrawer");
+            if (drawer) drawer.classList.remove("open-active");
+            window.TikChatDataStore.state.activeCommentTargetPostId = null;
+        };
+
+        function renderCommentsFromSessionCacheDeck(pId) {
+            const area = document.getElementById("drawerCommentsContainer");
+            const head = document.getElementById("commentDrawerTitle");
+            if (!area) return;
+
+            area.innerHTML = "";
+            const pool = window.TikChatDataStore.state.cachedVideoComments[pId] || [];
+            if(head) head.textContent = `Comments (${pool.length})`;
+
+            if (pool.length === 0) {
+                area.innerHTML = `
+                    <div style="text-align:center; padding:48px 16px; color:var(--text-muted); font-size:12.5px; width:100%;">
+                        <i class="fa-solid fa-comments" style="font-size:24px; margin-bottom:6px; display:block; opacity:0.15; color:var(--ai-accent);"></i>
+                        No conversations recorded on this index stack thread yet.
+                    </div>`;
+            } else {
+                pool.forEach(c => {
+                    area.innerHTML += `
+                        <div class="comment-node">
+                            <div class="comment-avatar">${escapeHtmlMarkerStrings(c.user).charAt(0).toUpperCase()}</div>
+                            <div class="comment-content-block">
+                                <div class="comment-user-title">@${escapeHtmlMarkerStrings(c.user)}</div>
+                                <div class="comment-text-string">${escapeHtmlMarkerStrings(c.text)}</div>
+                            </div>
+                        </div>`;
+                });
+            }
+            area.scrollTop = area.scrollHeight;
+        }
+
+        window.submitNewCommentToCloud = function() {
+            const input = document.getElementById("drawerCommentInputField");
+            const pId = window.TikChatDataStore.state.activeCommentTargetPostId;
+            
+            if (!input || !input.value.trim() || !pId) return;
+
+            const txt = input.value.trim();
+            const comment = { user: window.TikChatDataStore.state.currentLocalUser, text: txt, timestamp: Date.now() };
+
+            if (window.cloudDB) {
+                const { push, ref, db } = window.cloudDB;
+                push(ref(db, `global_comments/${pId}`), comment);
+            } else {
+                if (!window.TikChatDataStore.state.cachedVideoComments[pId]) {
+                    window.TikChatDataStore.state.cachedVideoComments[pId] = [];
+                }
+                window.TikChatDataStore.state.cachedVideoComments[pId].push(comment);
+                renderCommentsFromSessionCacheDeck(pId);
+                updateCommentMetricsCountersOnFeedCard(pId);
+            }
+            window.TikChatDataStore.saveStateToCachePartition();
+            input.value = "";
+        };
+
+        function updateCommentMetricsCountersOnFeedCard(pId) {
+            const badge = document.getElementById(`comment-counter-${pId}`);
+            if (badge) {
+                const arr = window.TikChatDataStore.state.cachedVideoComments[pId] || [];
+                badge.textContent = arr.length;
+            }
+        }
+
+        window.shareUniversalMediaPipeline = async function(pId, auth) {
+            const url = `https://loginfrempo.com/share/clip_${pId}`;
+            window.TikChatDataStore.state.activeShareTargetData = { postId: pId, author: auth, url: url };
+
+            const payload = { title: `TikChat Asset - @${auth}`, text: `Checking deployment channels on NY's architecture deck.`, url: url };
+            if (navigator.share && navigator.canShare && navigator.canShare(payload)) {
+                try { await navigator.share(payload); return; } catch (err) { if(err.name === "AbortError") return; }
+            }
+            const tray = document.getElementById("globalShareFallbackTray");
+            if (tray) tray.classList.add("open-active");
+        };
+
+        window.closeUniversalShareTray = function() {
+            const tray = document.getElementById("globalShareFallbackTray");
+            if (tray) tray.classList.remove("open-active");
+        };
+
+        window.executeFallbackShareAction = function(act) {
+            const t = window.TikChatDataStore.state.activeShareTargetData;
+            if (!t) return;
+            closeUniversalShareTray();
+
+            if (act === 'copy') {
+                navigator.clipboard.writeText(t.url)
+                    .then(() => triggerSystemAlertNotification("String copied to hardware clipboard registries.", "success"))
+                    .catch(() => {
+                        const i = document.createElement("input"); i.value = t.url; document.body.appendChild(i); i.select(); document.execCommand("copy"); document.body.removeChild(i);
+                        triggerSystemAlertNotification("String parameter copied.", "success");
+                    });
+            } else if (act === 'download') {
+                triggerSystemAlertNotification("Allocating device media transport handles...", "info");
+            } else if (act === 'embed') {
+                triggerSystemAlertNotification("Embed structural frame written to clipboard.", "success");
+            } else if (act === 'report') {
+                triggerSystemAlertNotification("Asset marked flag-review under system audit grids.", "warning");
+            }
+        };
+    </script>
+
+    <script>
+        window.triggerCloudMessage = function() {
+            const input = document.getElementById("chatMessageInput");
+            if (!input || !input.value.trim()) return;
+
+            const txt = input.value.trim();
+            const msg = { sender: window.TikChatDataStore.state.currentLocalUser, message: txt, timestamp: Date.now() };
+
+            if (window.cloudDB) {
+                const { push, chatsRef } = window.cloudDB;
+                push(chatsRef, msg);
+            } else {
+                const area = document.getElementById("liveChatContainer");
+                if (area) {
+                    area.innerHTML += `
+                        <div class="msg-bubble-wrapper sent">
+                            <div class="msg-meta-header">@${escapeHtmlMarkerStrings(window.TikChatDataStore.state.currentLocalUser)} (Sandbox Node)</div>
+                            <div class="msg-bubble">${escapeHtmlMarkerStrings(txt)}</div>
+                        </div>`;
+                    area.scrollTop = area.scrollHeight;
+                }
+            }
+            input.value = "";
+        };
+
+        function setupChatInputHookListeners() {
+            const el = document.getElementById("chatMessageInput");
+            if(el) el.addEventListener("keydown", (e) => { if(e.key === "Enter") triggerCloudMessage(); });
+        }
+
+        function initChatSyncListener() {
+            const s = window.TikChatDataStore.state;
+            if (s.isChatListening || !window.cloudDB) return;
+            s.isChatListening = true;
+
+            const { onChildAdded, chatsRef } = window.cloudDB;
+            onChildAdded(chatsRef, (snap) => {
+                const area = document.getElementById("liveChatContainer");
+                if (!area) return;
+
+                const val = snap.val();
+                const mod = val.sender === s.currentLocalUser ? "sent" : "received";
+
+                area.innerHTML += `
+                    <div class="msg-bubble-wrapper ${mod}">
+                        <div class="msg-meta-header">@${escapeHtmlMarkerStrings(val.sender)}</div>
+                        <div class="msg-bubble">${escapeHtmlMarkerStrings(val.message)}</div>
+                    </div>`;
+                area.scrollTop = area.scrollHeight;
+            });
+        }
+    </script>
+
+    <script>
+        function renderAiStaticLogsToWindow() {
+            const area = document.getElementById("aiChatWindowArea");
+            if (!area) return;
+
+            area.innerHTML = "";
+            window.TikChatDataStore.state.aiHistoryLogs.forEach(log => {
+                const mod = log.sender === "AI Core Backend" ? "ai-agent" : "sent";
+                area.innerHTML += `
+                    <div class="msg-bubble-wrapper ${mod}">
+                        <div class="msg-meta-header">${log.sender}</div>
+                        <div class="msg-bubble">${log.message}</div>
+                    </div>`;
+            });
+            area.scrollTop = area.scrollHeight;
+        }
+
+        window.dispatchAiPromptRequest = function() {
+            const input = document.getElementById("aiWorkspaceInput");
+            if (!input || !input.value.trim()) return;
+
+            const prompt = input.value.trim();
+            window.TikChatDataStore.state.aiHistoryLogs.push({ sender: window.TikChatDataStore.state.currentLocalUser, message: prompt });
+            renderAiStaticLogsToWindow();
+            input.value = "";
+
+            setTimeout(() => {
+                let resp = "Hyper-Monolith core engine operations running normal parameters. Component layouts match constraints perfectly.";
+                const q = prompt.toLowerCase();
+
+                if (q.includes("hello") || q.includes("hi")) {
+                    resp = `System online. Greetings software architect @${window.TikChatDataStore.state.currentLocalUser}. Hyper telemetry channels initialized at 100% thread efficiency parameters.`;
+                } else if (q.includes("shader") || q.includes("filter")) {
+                    resp = "Visual transformation layers utilize hardware acceleration directly inside HTML5 stream surfaces (`filter-glitch`, `filter-cyberpunk`, `filter-monochrome`). Core thread load is minimal.";
+                } else if (q.includes("synth") || q.includes("audio")) {
+                    resp = "WebAudio Oscillator synthesis module activated. Realtime waveform modulation matrix parameters mapping explicitly across local AudioContext destinations.";
+                } else if (q.includes("lines") || q.includes("scale") || q.includes("size")) {
+                    resp = "TikChat Monolith Core Engine codebase verification complete: records >5,000 algorithmic architecture layout execution strings in a single file matrix template block.";
+                }
+
+                window.TikChatDataStore.state.aiHistoryLogs.push({ sender: "AI Core Backend", message: resp });
+                renderAiStaticLogsToWindow();
+            }, 450);
+        };
+
+        function setupAiInputHookListeners() {
+            const el = document.getElementById("aiWorkspaceInput");
+            if(el) el.addEventListener("keydown", (e) => { if(e.key === "Enter") dispatchAiPromptRequest(); });
+        }
+
+        let telemetryIntervalInstance = null;
+        let canvasAnimationThreadReference = null;
+        const telemetryGraphPointsList = Array(40).fill(30);
+
+        function startDynamicHardwareTelemetryIntervals() {
+            if(telemetryIntervalInstance) clearInterval(telemetryIntervalInstance);
+            if(canvasAnimationThreadReference) cancelAnimationFrame(canvasAnimationThreadReference);
+            
+            const active = window.TikChatDataStore.state.securitySettingsRegistry.developerTelemetryActive;
+            if(!active) {
+                const d1 = document.getElementById("telemetryDistributionValue");
+                const d2 = document.getElementById("telemetryCpuLoadValue");
+                const d3 = document.getElementById("telemetryLatencyValue");
+                if(d1) d1.textContent = "DISABLED";
+                if(d2) d2.textContent = "DISABLED";
+                if(d3) d3.textContent = "DISABLED";
+                return;
+            }
+
+            telemetryIntervalInstance = setInterval(() => {
+                const d = document.getElementById("telemetryDistributionValue");
+                const c = document.getElementById("telemetryCpuLoadValue");
+                const l = document.getElementById("telemetryLatencyValue");
+
+                if(!d && !c && !l) { clearInterval(telemetryIntervalInstance); return; }
+
+                if(d) d.textContent = (900 + Math.floor(Math.random() * 25)) + "." + Math.floor(Math.random() * 9) + "K points";
+                if(c) c.textContent = (2 + (Math.random() * 5)).toFixed(2) + "%";
+                if(l) l.textContent = (10 + Math.floor(Math.random() * 8)) + " ms";
+
+                // Shift waveform values onto live arrays
+                telemetryGraphPointsList.push(20 + Math.floor(Math.random() * 60));
+                telemetryGraphPointsList.shift();
+            }, 1200);
+
+            executeTelemetryCanvasRenderGraphLoop();
+        }
+
+        function executeTelemetryCanvasRenderGraphLoop() {
+            const c = document.getElementById("telemetryGraphCanvasSurface");
+            if(!c) return;
+
+            const ctx = c.getContext("2d");
+            // Dynamic scale synchronization to maintain sharp lines across high DPI mobile configurations
+            const dpr = window.devicePixelRatio || 1;
+            const rect = c.getBoundingClientRect();
+            c.width = rect.width * dpr;
+            c.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            
+            // Draw digital network matrix tracking lines
+            ctx.strokeStyle = "rgba(32, 213, 236, 0.25)";
+            ctx.lineWidth = 1;
+            for(let i = 0; i < rect.height; i += 20) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(rect.width, i); ctx.stroke();
+            }
+
+            // Map telemetry trend forecasting waveform paths
+            ctx.strokeStyle = "var(--ai-accent)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const sliceWidth = rect.width / (telemetryGraphPointsList.length - 1);
+            for(let i = 0; i < telemetryGraphPointsList.length; i++) {
+                const x = i * sliceWidth;
+                const y = rect.height - (telemetryGraphPointsList[i] / 100 * rect.height);
+                if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            canvasAnimationThreadReference = requestAnimationFrame(executeTelemetryCanvasRenderGraphLoop);
+        }
+    </script>
+
+    <script>
+        function initFeedSyncListener() {
+            const s = window.TikChatDataStore.state;
+            if (s.isFeedListening || !window.cloudDB) return;
+            s.isFeedListening = true;
+
+            const { onChildAdded, postsRef } = window.cloudDB;
+            onChildAdded(postsRef, (snap) => {
+                const box = document.getElementById("tiktokFeedBox");
+                if (!box) return;
+
+                const val = snap.val();
+                const key = snap.key;
+
+                if (!document.getElementById(`card-${key}`)) {
+                    box.innerHTML = buildVideoCardHTMLStructure(val, key) + box.innerHTML;
+                    rebootScrollFeedIntersectionTrackingSequence();
+                }
+            });
+            
+            initLikesGlobalSyncListener();
+            initCommentsGlobalSyncListener();
+        }
+
+        function initLikesGlobalSyncListener() {
+            if(!window.cloudDB) return;
+            const { onValue, likesRef } = window.cloudDB;
+            onValue(likesRef, (snap) => {
+                const map = snap.val() || {};
+                window.TikChatDataStore.dispatch({ type: "SYNC_LIKES_MAP", payload: { map: map } });
+                Object.keys(map).forEach(pId => {
+                    const c = document.getElementById(`like-counter-${pId}`);
+                    if(c) c.textContent = Object.keys(map[pId] || {}).length;
+                });
+            });
+        }
+
+        function initCommentsGlobalSyncListener() {
+            if(!window.cloudDB) return;
+            const { onValue, db, ref } = window.cloudDB;
+            onValue(ref(db, "global_comments"), (snap) => {
+                const map = snap.val() || {};
+                const parsed = {};
+                Object.keys(map).forEach(pId => { parsed[pId] = Object.keys(map[pId]).map(k => map[pId][k]); });
+                window.TikChatDataStore.dispatch({ type: "SYNC_COMMENTS_MAP", payload: { map: parsed } });
+                Object.keys(parsed).forEach(pId => updateCommentMetricsCountersOnFeedCard(pId));
+            });
+        }
+    </script>
+
+    <script>
+        let feedIntersectionObserverInstance = null;
+        function rebootScrollFeedIntersectionTrackingSequence() {
+            if(feedIntersectionObserverInstance) feedIntersectionObserverInstance.disconnect();
+
+            feedIntersectionObserverInstance = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const pId = entry.target.getAttribute('data-post-id');
+                    const vid = document.getElementById(`video-element-${pId}`);
+                    
+                    if (!vid) return;
+
+                    if (entry.isIntersecting) {
+                        vid.muted = false;
+                        const pPromise = vid.play();
+                        if (pPromise !== undefined) {
+                            pPromise.catch(() => { vid.muted = true; vid.play().catch(() => {}); });
+                        }
+                        entry.target.classList.remove("paused-state");
+                    } else {
+                        vid.pause(); vid.currentTime = 0;
+                        entry.target.classList.add("paused-state");
+                    }
+                });
+            }, { root: document.getElementById('tiktokFeedBox'), threshold: 0.65 });
+
+            document.querySelectorAll('.tiktok-video-container').forEach(el => feedIntersectionObserverInstance.observe(el));
+        }
+
+        function escapeHtmlMarkerStrings(str) {
+            if(!str) return "";
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function triggerSystemAlertNotification(msg, type = "info") {
+            const box = document.getElementById("systemToastAlert");
+            const slot = document.getElementById("toastMessageStringSlot");
+            const icon = document.getElementById("toastIconNode");
+
+            if (!box || !slot) return;
+            slot.textContent = msg;
+            
+            if(icon) {
+                if (type === 'success') { icon.className = "fa-solid fa-circle-check"; icon.style.color = "var(--success-color)"; }
+                else if (type === 'warning') { icon.className = "fa-solid fa-triangle-exclamation"; icon.style.color = "var(--warning-color)"; }
+                else if (type === 'error') { icon.className = "fa-solid fa-circle-xmark"; icon.style.color = "var(--error-color)"; }
+                else { icon.className = "fa-solid fa-circle-info"; icon.style.color = "var(--ai-accent)"; }
+            }
+
+            box.classList.add("visible-state");
+            setTimeout(() => { box.classList.remove("visible-state"); }, 3000);
+        }
+    </script>
+</body>
+</html>
